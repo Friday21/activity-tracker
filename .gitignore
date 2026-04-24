@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Playwright browser profile with cookies (login state)
+.browser_profile/
+
+# User config — contains secrets (Telegram tokens, API open_id)
+config.json
+
+# Generated data
+inputs/activity/
+outputs/
+!outputs/.gitkeep
+
+# macOS cruft
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

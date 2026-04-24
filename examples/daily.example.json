@@ -1,0 +1,46 @@
+{
+  "date": "2026-04-23",
+  "updated_at": "2026-04-24T09:08:12+08:00",
+  "items": [
+    {
+      "category": "睡眠",
+      "title": "睡眠",
+      "start": "2026-04-23T00:11:00+08:00",
+      "duration_seconds": 29280,
+      "detail": "sleep",
+      "source": "calculated"
+    },
+    {
+      "category": "工作",
+      "title": "github.com",
+      "start": "2026-04-23T10:23:45+08:00",
+      "duration_seconds": 697,
+      "detail": "https://github.com/user/repo/pull/123",
+      "source": "browser"
+    },
+    {
+      "category": "工作",
+      "title": "VS Code",
+      "start": "2026-04-23T14:02:00+08:00",
+      "duration_seconds": 5420,
+      "detail": "VS Code",
+      "source": "mac"
+    },
+    {
+      "category": "娱乐",
+      "title": "抖音",
+      "start": "2026-04-23T21:05:10+08:00",
+      "duration_seconds": 1820,
+      "detail": "com.ss.iphone.ugc.Aweme",
+      "source": "iphone"
+    },
+    {
+      "category": "社交",
+      "title": "Messages",
+      "start": "2026-04-23T22:15:30+08:00",
+      "duration_seconds": 240,
+      "detail": "com.apple.MobileSMS",
+      "source": "iphone"
+    }
+  ]
+}

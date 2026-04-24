@@ -1,0 +1,64 @@
+{
+  "timezone": "Asia/Shanghai",
+
+  "upload": {
+    "enabled": false,
+    "endpoint": "https://your-api.example.com/api/time/upload/{open_id}/",
+    "open_id": "PASTE_YOUR_OPEN_ID_HERE"
+  },
+
+  "notifications": {
+    "telegram": {
+      "bot_token": "",
+      "chat_id": ""
+    },
+    "wechat": {
+      "webhook_url": ""
+    }
+  },
+
+  "default_day_mode": "yesterday",
+  "top_domains_limit": 15,
+  "top_urls_limit": 20,
+  "default_gap_seconds": 30,
+  "max_gap_seconds": 1800,
+  "same_domain_continuation_bonus_seconds": 60,
+  "strip_query_params_prefixes": ["utm_"],
+  "strip_query_params_exact": ["fbclid", "gclid", "igshid", "mc_cid", "mc_eid", "ref", "spm"],
+
+  "skip_bundles": [
+    "com.apple.ClockAngel",
+    "com.apple.mobiletimer"
+  ],
+
+  "categories": {
+    "学习": {
+      "domains": ["wikipedia.org", "coursera.org", "edx.org", "udemy.com", "khanacademy.org", "developer.mozilla.org", "developer.chrome.com", "docs.python.org", "arxiv.org", "scholar.google.com", "stackoverflow.com", "github.com"],
+      "keywords": ["docs", "tutorial", "course", "learn", "study", "guide", "reference", "api", "spec", "paper"]
+    },
+    "工作": {
+      "domains": ["notion.so", "figma.com", "linear.app", "slack.com", "jira", "atlassian.net", "docs.google.com", "drive.google.com", "calendar.google.com", "meet.google.com", "zoom.us", "github.com"],
+      "keywords": ["meeting", "sprint", "project", "roadmap", "design", "spec", "pr", "pull request", "issue", "task", "workspace"]
+    },
+    "娱乐": {
+      "domains": ["youtube.com", "bilibili.com", "netflix.com", "twitch.tv", "spotify.com", "douyin.com", "music.163.com"],
+      "keywords": ["video", "music", "movie", "anime", "stream", "game", "watch"]
+    },
+    "社交": {
+      "domains": ["x.com", "twitter.com", "weibo.com", "reddit.com", "discord.com", "telegram.org", "web.telegram.org", "instagram.com", "facebook.com", "xiaohongshu.com"],
+      "keywords": ["post", "tweet", "thread", "chat", "message", "dm", "comment"]
+    },
+    "购物": {
+      "domains": ["amazon.com", "taobao.com", "tmall.com", "jd.com", "pinduoduo.com", "ebay.com", "aliexpress.com"],
+      "keywords": ["shop", "buy", "cart", "checkout", "coupon", "order"]
+    },
+    "新闻": {
+      "domains": ["news.ycombinator.com", "nytimes.com", "wsj.com", "bbc.com", "cnn.com", "theverge.com", "36kr.com", "huxiu.com", "ifanr.com"],
+      "keywords": ["news", "headline", "breaking", "report"]
+    },
+    "工具": {
+      "domains": ["google.com", "baidu.com", "chatgpt.com", "claude.ai", "gemini.google.com", "translate.google.com", "openai.com"],
+      "keywords": ["search", "translate", "tool", "utility", "ai"]
+    }
+  }
+}
