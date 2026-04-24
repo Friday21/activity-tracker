@@ -1,4 +1,4 @@
-# activity-tracker-mac
+# 时间追踪
 
 在本机把你在网上做的一切汇总成一份干净的 JSON 日志。
 
@@ -68,7 +68,7 @@ outputs/daily/2026-04-23.json
 ## 一键上手
 
 ```bash
-git clone https://github.com/<你的用户名>/activity-tracker-mac.git
+git clone https://github.com/Friday21/activity-tracker.git
 cd activity-tracker-mac
 
 ./install.sh                                   # 创建 venv、装依赖、装 Playwright
