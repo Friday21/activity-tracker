@@ -1,26 +1,28 @@
 # activity-tracker-mac
 
-Collect everything you do online into one clean daily JSON, entirely from your Mac.
+在本机把你在网上做的一切汇总成一份干净的 JSON 日志。
 
-This project merges three data sources into a single per-day file:
+> 🌐 Language: **中文** · [English](README.en.md)
 
-- **Browser history** — scraped from Google My Activity (covers Chrome / Safari across all signed-in devices)
-- **macOS app usage** — read from `knowledgeC.db`
-- **iPhone app usage** — read from Biome `App.InFocus` SEGB streams (synced via iCloud)
+本项目把三路数据源合并成一份按天落地的 JSON：
 
-plus automatic sleep detection from nightly phone-idle gaps, plus optional upload to your own HTTP API.
+- **浏览历史** —— 从 Google My Activity 抓取（覆盖所有已登录 Google 帐号的 Chrome / Safari 设备）
+- **macOS app 使用时长** —— 读 `knowledgeC.db`
+- **iPhone app 使用时长** —— 读 Biome `App.InFocus` SEGB（通过 iCloud 同步到 Mac）
 
-> **Platform:** macOS only. `knowledgeC.db` and Biome are Apple-private. Windows users — see [Windows adaptation](#windows-adaptation) below.
+还会基于夜间手机闲置时段自动算出睡眠时长，并可选地把当天结果上传到你自建的 HTTP API。
 
-## What you get
+> **适用平台：仅 macOS。** `knowledgeC.db` 和 Biome 是 Apple 私有数据源。Windows 用户请看下文 [Windows 适配](#windows-适配)。
 
-Every day at 03:00 (and again every 2 hours during the day) this runs and writes:
+## 你会得到什么
+
+每天 03:00（以及白天每 2 小时）自动运行，产物是：
 
 ```
 outputs/daily/2026-04-23.json
 ```
 
-With a schema like:
+结构如下：
 
 ```json
 {
@@ -55,53 +57,53 @@ With a schema like:
 }
 ```
 
-Categories (Chinese, configurable): `学习 / 工作 / 娱乐 / 社交 / 购物 / 新闻 / 工具 / 其他 / 睡眠`.
+分类（中文，可在 config 里改）：`学习 / 工作 / 娱乐 / 社交 / 购物 / 新闻 / 工具 / 其他 / 睡眠`。
 
-Sources: `browser` / `mac` / `iphone` / `calculated`.
+数据来源（`source` 字段）：`browser` / `mac` / `iphone` / `calculated`。
 
-For the full write-up / design notes, see [`docs/BLOG.md`](docs/BLOG.md).
+完整的设计思路与数据源原理见 [`docs/BLOG.md`](docs/BLOG.md)。
 
 ---
 
-## Quick start
+## 一键上手
 
 ```bash
-git clone https://github.com/<you>/activity-tracker-mac.git
+git clone https://github.com/<你的用户名>/activity-tracker-mac.git
 cd activity-tracker-mac
 
-./install.sh                              # creates .venv, installs deps, installs Playwright
-.venv/bin/python3 scripts/setup_browser.py  # log in to Google once (headed browser opens)
+./install.sh                                   # 创建 venv、装依赖、装 Playwright
+.venv/bin/python3 scripts/setup_browser.py     # 首次登录 Google（会弹出 Chromium 窗口）
 
-cp config.example.json config.json        # then edit — see below
-./run_daily.sh                            # one-shot test run
+cp config.example.json config.json             # 然后按需编辑，见下文
+./run_daily.sh                                 # 先手动跑一次试试
 
-./schedule.sh install                     # install launchd agent (auto-run)
+./schedule.sh install                          # 挂进 launchd，自动每天定时跑
 ```
 
-Output lives in `outputs/daily/YYYY-MM-DD.json`.
+产物在 `outputs/daily/YYYY-MM-DD.json`。
 
 ---
 
-## Prerequisites
+## 运行前提
 
-1. **macOS 12+** (tested on 14 Sonoma and 15 Sequoia).
-2. **Python 3.10+** (`python3 --version`).
-3. **Full Disk Access** for the program that runs the script. Without this, reading `knowledgeC.db` fails silently.
+1. **macOS 12 或更高**（已在 14 Sonoma 和 15 Sequoia 上测过）。
+2. **Python 3.10+**（`python3 --version` 看一下）。
+3. **Full Disk Access**（完全磁盘访问权限）。没这个权限，`knowledgeC.db` 会读不出来而且不会报错。
 
-   System Settings → Privacy & Security → **Full Disk Access** → add whichever of these is actually launching the script:
-   - `Terminal.app` / `iTerm.app` (if you run it by hand)
-   - `/bin/zsh` (if launchd runs it — add the exact binary)
-   - `launchd` itself (on some macOS versions)
+   System Settings → Privacy & Security → **Full Disk Access** → 把**真正执行脚本的二进制**加进去：
+   - `Terminal.app` / `iTerm.app`（手动跑脚本时）
+   - `/bin/zsh`（launchd 跑脚本时——就是 plist 里写的解释器）
+   - 有些 macOS 版本还要把 `launchd` 本身加进去
 
-   Toggle the entry off and on after adding; macOS caches TCC decisions per binary hash.
+   加完以后把这一项关了再打开，macOS 的 TCC 权限是按二进制哈希缓存的。
 
-4. **A Google account** with activity saved. If you disabled Web & App Activity in your Google account, this project has nothing to scrape — re-enable it at [myactivity.google.com/activitycontrols](https://myactivity.google.com/activitycontrols).
+4. **有活动记录的 Google 帐号**。如果你在 Google 帐号里关掉了「网络与应用活动」（Web & App Activity），这套东西就没数据可抓，需要先到 [myactivity.google.com/activitycontrols](https://myactivity.google.com/activitycontrols) 打开。
 
 ---
 
-## Configuration
+## 配置
 
-Copy `config.example.json` to `config.json` and edit:
+把 `config.example.json` 拷成 `config.json`，编辑：
 
 ```jsonc
 {
@@ -110,7 +112,7 @@ Copy `config.example.json` to `config.json` and edit:
   "upload": {
     "enabled": true,
     "endpoint": "https://your-api.example.com/api/time/upload/{open_id}/",
-    "open_id": "PASTE_YOUR_OPEN_ID_HERE"
+    "open_id": "在这里贴你的 OPEN_ID"
   },
 
   "notifications": {
@@ -133,88 +135,89 @@ Copy `config.example.json` to `config.json` and edit:
 }
 ```
 
-- **`upload.enabled: false`** if you just want local JSON and no remote upload.
-- **`upload.open_id`** never commit this to git. `config.json` is in `.gitignore`.
-- **`categories`** — 8 top-level buckets the project ships with. Rename / translate freely; downstream code doesn't care.
-- **`domain_categories.json`** (separate file) — specific-domain overrides. E.g. `"github.com": "工作"`. Unknown domains are accumulated in `outputs/unclassified_domains.txt` for later review.
+- **`upload.enabled: false`** 如果你只想本地落 JSON、不想上传远端。
+- **`upload.open_id`** 千万别 commit 到 git！`config.json` 已经在 `.gitignore` 里。
+- **`categories`** 默认的 8 个中文大类。可以自由改名或换成英文，后续代码不 care 具体名字。
+- **`domain_categories.json`**（独立文件）—— 具体 domain 或 bundle id 的分类覆盖，比如 `"github.com": "工作"`。运行时遇到未分类的新 key 会累积到 `outputs/unclassified_domains.txt` 供你人工或用 LLM 批处理。
 
 ---
 
-## What the pipeline does
+## pipeline 做了什么
 
-`run_daily.sh` runs 6 steps in order. Each step is independent enough that the next one still runs if an earlier one fails.
+`run_daily.sh` 按顺序跑 6 步，前一步失败不影响后面继续跑：
 
-| # | Script | Output |
+| # | 脚本 | 产物 |
 |---|---|---|
-| 1 | `scripts/fetch_screentime.py --days 7` | `outputs/screentime/YYYY-MM-DD.json` — merged Mac + iPhone events |
-| 2 | `scripts/fetch_activity.py --headless` | `inputs/activity/capture-*.jsonl` — raw browser records |
-| 3 | `src/analyze.py --day today` & `--day yesterday` | `outputs/data/YYYY-MM-DD.json` — deduped + classified visits with estimated durations |
-| 4 | `scripts/build_daily_json.py` | `outputs/daily/YYYY-MM-DD.json` — unified daily file |
-| 5 | `scripts/calc_sleep.py --all` | injects `睡眠` item into each daily JSON |
-| 6 | `scripts/summary_from_report.py` | `outputs/daily/YYYY-MM-DD.summary.txt` — human-readable digest |
-| 7 | `scripts/upload.py` (optional) | POSTs each built daily JSON to your API |
+| 1 | `scripts/fetch_screentime.py --days 7` | `outputs/screentime/YYYY-MM-DD.json` —— Mac + iPhone 事件合并后落盘 |
+| 2 | `scripts/fetch_activity.py --headless` | `inputs/activity/capture-*.jsonl` —— 浏览器原始记录 |
+| 3 | `src/analyze.py --day today` / `--day yesterday` | `outputs/data/YYYY-MM-DD.json` —— 去重、分类、估算停留时长后的浏览明细 |
+| 4 | `scripts/build_daily_json.py` | `outputs/daily/YYYY-MM-DD.json` —— 合并后的统一日报 |
+| 5 | `scripts/calc_sleep.py --all` | 往每份 daily JSON 里塞一条 `睡眠` item |
+| 6 | `scripts/summary_from_report.py` | `outputs/daily/YYYY-MM-DD.summary.txt` —— 人读的文字版摘要 |
+| 7 | `scripts/upload.py`（可选） | POST 到你自己的 API |
 
-Quiet-hours gate: the script self-skips runs between 04:00–08:59 local time (unless `FORCE_RUN=1`), because that's when you're asleep and the browser scrape would just waste 2 minutes.
+**静默时段**：脚本自己在 04:00–08:59 会跳过运行（除非设 `FORCE_RUN=1`）——那时候人在睡觉，抓浏览器只是白白耗 2 分钟。
 
 ---
 
-## Scheduling
+## 定时执行
 
-One-liner:
+最简单：
 
 ```bash
-./schedule.sh install      # install launchd agent
-./schedule.sh uninstall    # remove it
-./schedule.sh status       # show next fire time
-./schedule.sh run          # fire it now
+./schedule.sh install      # 安装 launchd agent
+./schedule.sh uninstall    # 卸载
+./schedule.sh status       # 看下次触发时间
+./schedule.sh run          # 立即触发一次
+./schedule.sh logs         # 跟着看今天的日志
 ```
 
-Under the hood this writes `~/Library/LaunchAgents/com.user.activity-tracker.plist` from [`launchd/com.user.activity-tracker.plist.template`](launchd/com.user.activity-tracker.plist.template) with the correct project path, then `launchctl load`s it.
+底层逻辑：用 [`launchd/com.user.activity-tracker.plist.template`](launchd/com.user.activity-tracker.plist.template) 模板写一份 plist，把项目绝对路径替换进去，再 `launchctl load` 到 `~/Library/LaunchAgents/`。
 
-Default schedule: **03:00 daily** + **every 2 hours between 09:00 and 23:00**.
+默认触发计划：**每天 03:00** + **09:00–23:00 每 2 小时一次**。
 
-Prefer cron? Add:
+想用 cron 也行：
 
 ```cron
-0 3,9,11,13,15,17,19,21,23 * * * cd /absolute/path/activity-tracker-mac && ./run_daily.sh
+0 3,9,11,13,15,17,19,21,23 * * * cd /绝对路径/activity-tracker-mac && ./run_daily.sh
 ```
 
 ---
 
-## Manual usage
+## 手动用法
 
-Fetch last 7 days of screen time:
+拉最近 7 天的屏幕使用数据：
 
 ```bash
 .venv/bin/python3 scripts/fetch_screentime.py --days 7
 ```
 
-Fetch latest Google Activity (headless, uses saved login):
+headless 模式抓 Google Activity（用已保存的登录态）：
 
 ```bash
 .venv/bin/python3 scripts/fetch_activity.py --headless
 ```
 
-Analyze a specific day:
+分析某一天：
 
 ```bash
 .venv/bin/python3 src/analyze.py --day 2026-04-23
 .venv/bin/python3 src/analyze.py --day yesterday
 ```
 
-Re-build a daily JSON from whatever sources exist:
+把已有数据重新合并成 daily JSON：
 
 ```bash
 .venv/bin/python3 scripts/build_daily_json.py
 ```
 
-Upload one specific day:
+上传单独一天：
 
 ```bash
 .venv/bin/python3 scripts/upload.py 2026-04-23
 ```
 
-Upload every day that has a daily JSON:
+上传所有已生成的 daily JSON：
 
 ```bash
 .venv/bin/python3 scripts/upload.py --all
@@ -222,9 +225,9 @@ Upload every day that has a daily JSON:
 
 ---
 
-## Upload protocol
+## 上传协议
 
-If `upload.enabled` is true, the script POSTs each built daily JSON to:
+开启 `upload.enabled: true` 后，脚本会把每份 daily JSON POST 到：
 
 ```
 POST {endpoint}
@@ -233,15 +236,15 @@ Content-Type: application/json
 { "items": [ ... ] }
 ```
 
-where `{endpoint}` has `{open_id}` substituted from config.
+其中 `{endpoint}` 会自动把配置里的 `{open_id}` 占位替换成真实的 open_id。
 
-Your server is expected to:
+你自己的服务端应该：
 
-- accept `{ items: [...] }`
-- deduplicate on `(start, detail)` (same key as local dedup)
-- return any JSON; the script just logs it
+- 接受 `{ items: [...] }` 格式
+- 按 `(start, detail)` 判重（跟本地去重规则一致）
+- 返回任意 JSON（脚本只负责把响应打到日志）
 
-Reference response from my setup:
+一个可参考的响应格式：
 
 ```json
 {
@@ -253,36 +256,37 @@ Reference response from my setup:
 
 ---
 
-## File layout
+## 项目结构
 
 ```
 activity-tracker-mac/
-├── README.md                           ← you are here
-├── docs/BLOG.md                        ← full write-up / design notes
-├── install.sh                          ← one-shot setup (venv + deps + playwright)
-├── schedule.sh                         ← install/uninstall launchd agent
-├── run_daily.sh                        ← the pipeline entrypoint
+├── README.md                           ← 你正在看的（中文）
+├── README.en.md                        ← English version
+├── docs/BLOG.md                        ← 完整原理 / 架构博客
+├── install.sh                          ← 一键安装（venv + 依赖 + playwright）
+├── schedule.sh                         ← launchd agent 安装/卸载
+├── run_daily.sh                        ← pipeline 入口
 ├── config.example.json
-├── domain_categories.json              ← domain → category mappings (extensible)
+├── domain_categories.json              ← domain → 分类映射（可扩展）
 ├── requirements.txt
 ├── launchd/
 │   └── com.user.activity-tracker.plist.template
 ├── scripts/
-│   ├── fetch_screentime.py             ← knowledgeC.db + Biome reader
-│   ├── fetch_activity.py               ← Google My Activity scraper
-│   ├── setup_browser.py                ← first-time Google login
-│   ├── build_daily_json.py             ← merge browser + screentime
-│   ├── calc_sleep.py                   ← sleep from iPhone idle gaps
-│   ├── summary_from_report.py          ← human-readable digest
-│   ├── upload.py                       ← POST daily JSON to your API
-│   └── notify.py                       ← Telegram notifier (optional)
+│   ├── fetch_screentime.py             ← knowledgeC.db + Biome 读取
+│   ├── fetch_activity.py               ← Google My Activity 爬取
+│   ├── setup_browser.py                ← 首次 Google 登录
+│   ├── build_daily_json.py             ← 合并 browser + screentime
+│   ├── calc_sleep.py                   ← 从 iPhone 空闲区间算睡眠
+│   ├── summary_from_report.py          ← 生成人读摘要
+│   ├── upload.py                       ← POST daily JSON 到你的 API
+│   └── notify.py                       ← Telegram 推送（可选）
 ├── src/
-│   └── analyze.py                      ← browser-activity analyzer
-├── inputs/activity/                    ← Playwright captures (generated)
+│   └── analyze.py                      ← 浏览记录分析器
+├── inputs/activity/                    ← Playwright 抓取结果（自动生成）
 ├── outputs/
 │   ├── screentime/YYYY-MM-DD.json
-│   ├── data/YYYY-MM-DD.json            ← analyzed browser visits
-│   ├── daily/YYYY-MM-DD.json           ← ★ final per-day output
+│   ├── data/YYYY-MM-DD.json            ← 浏览记录明细
+│   ├── daily/YYYY-MM-DD.json           ← ★ 每日最终产物
 │   ├── daily/YYYY-MM-DD.summary.txt
 │   ├── logs/
 │   └── unclassified_domains.txt
@@ -292,55 +296,55 @@ activity-tracker-mac/
 
 ---
 
-## Windows adaptation
+## Windows 适配
 
-The three data sources map to Windows as follows:
+三路数据源对应 Windows 的替代方案：
 
-| Source | macOS | Windows alternative |
+| 数据源 | macOS | Windows 替代 |
 |---|---|---|
-| Browser history | `scripts/fetch_activity.py` (Google My Activity, Playwright) | **Same script works.** Playwright is cross-platform. |
-| Local app usage | `knowledgeC.db` + Biome | [ActivityWatch](https://activitywatch.net/) (open source, installer for Windows) — use `aw-watcher-window` + `aw-watcher-afk` buckets. Or read `%LOCALAPPDATA%\ConnectedDevicesPlatform\...\ActivitiesCache.db` directly (Timeline data). |
-| iPhone app usage | Biome (via iCloud sync to Mac) | **Not directly available on Windows.** Use an iPhone Shortcut to export Screen Time summaries daily (hour-granularity only). |
+| 浏览记录 | `scripts/fetch_activity.py`（Google My Activity + Playwright） | **原脚本直接能用**，Playwright 是跨平台的 |
+| 本机 app 使用 | `knowledgeC.db` + Biome | [ActivityWatch](https://activitywatch.net/)（开源，Windows 有安装包）—— 用它的 `aw-watcher-window` + `aw-watcher-afk` 两个 bucket。也可以直接读 `%LOCALAPPDATA%\ConnectedDevicesPlatform\...\ActivitiesCache.db`（Windows Timeline 数据）。 |
+| iPhone app 使用 | Biome（通过 iCloud 同步到 Mac） | **Windows 上直接拿不到。** 退而求其次：iPhone 上写个 Shortcut，每天导出一次 Screen Time（只有每小时粒度）。 |
 
-As long as your Windows adapter produces the **same `items[].{category, title, start, duration_seconds, detail, source}` schema**, the rest of the pipeline — sleep calculation, upload, server-side dedup — is identical.
+只要你的 Windows 适配器最终产出的 JSON **字段结构符合 `items[].{category, title, start, duration_seconds, detail, source}` 这份 schema**，后面的睡眠计算、上传、服务端去重全部都能复用。
 
-PRs welcome if you write a Windows adapter.
-
----
-
-## Privacy
-
-Everything runs locally. The only network calls are:
-
-- Playwright fetching `myactivity.google.com` (your own account)
-- Optional Telegram notification (if configured)
-- Optional `POST` to your own API endpoint (if configured)
-
-Nothing is sent to any third-party service. `.browser_profile/`, `config.json`, `inputs/`, `outputs/` are all in `.gitignore`.
+欢迎 PR 贡献 Windows 适配器。
 
 ---
 
-## Troubleshooting
+## 隐私
 
-**`ERROR: cannot read knowledgeC.db`** — Full Disk Access missing. See [Prerequisites](#prerequisites).
+所有处理都在本地完成。脚本唯一会发出的网络请求是：
 
-**Playwright fetch returns 0 items** — your Google login cookie expired. Re-run `scripts/setup_browser.py`.
+- Playwright 访问 `myactivity.google.com`（你自己的 Google 帐号）
+- Telegram 通知（如果你配了）
+- POST 到你自己的 API 端点（如果你配了）
 
-**iPhone data missing** — check iCloud: Settings → [your name] → iCloud → Screen Time must be ON, and the iPhone must have synced to this Mac at least once.
+**不会**有任何数据发往第三方服务。`.browser_profile/`、`config.json`、`inputs/`、`outputs/` 全部在 `.gitignore` 里。
 
-**Durations look off for iPhone** — `BIOME_MAX_GAP_SECONDS` (default 180) caps per-session duration; if an app legitimately runs in foreground for >3 min without any other event, it gets capped. Tune in `scripts/fetch_screentime.py` if needed.
+---
 
-**Full Disk Access granted but still 0 rows** — toggle the entry off-and-on in System Settings, and verify you granted it to the *exact* binary launchd is executing (often `/bin/zsh`, not Terminal).
+## 故障排查
+
+**`ERROR: cannot read knowledgeC.db`** —— 少了 Full Disk Access，见上文 [运行前提](#运行前提)。
+
+**Playwright 抓出来 0 条** —— Google 登录 cookie 过期了，重新跑一次 `scripts/setup_browser.py`。
+
+**iPhone 数据完全没有** —— iPhone 端 Screen Time 的 iCloud 同步要打开：Settings → [你的名字] → iCloud → Screen Time → ON，并且这台 Mac 至少和 iPhone 同步过一次。
+
+**iPhone duration 数值偏小** —— `BIOME_MAX_GAP_SECONDS`（默认 180 秒）会把单次前台时长截到 3 分钟以内。如果某个 app 确实前台超过 3 分钟没有任何其他事件，它会被截断。想改就在 `scripts/fetch_screentime.py` 里改这个常量。
+
+**Full Disk Access 加了还是读不到** —— 在 System Settings 里把这一项关了再打开，确认你加的**就是 launchd 调起来的那个二进制**（通常是 `/bin/zsh`，不是 Terminal）。
 
 ---
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT，见 [LICENSE](LICENSE)。
 
 ---
 
-## Credits
+## 致谢
 
-- Schema and column reverse-engineering borrows heavily from [mac_apt](https://github.com/ydkhatri/mac_apt) and [APOLLO](https://github.com/mac4n6/APOLLO).
-- Playwright-based Google Activity scraping adapts well-known patterns from the open-source community.
+- `knowledgeC.db` 的表结构和字段解读大量参考了 [mac_apt](https://github.com/ydkhatri/mac_apt) 和 [APOLLO](https://github.com/mac4n6/APOLLO)。
+- Google My Activity 的 Playwright 抓取思路借鉴社区里广为流传的若干做法。
