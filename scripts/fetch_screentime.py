@@ -54,7 +54,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 DOMAIN_CATEGORIES_PATH = PROJECT_ROOT / "domain_categories.json"
 OUTPUT_DIR = PROJECT_ROOT / "outputs" / "screentime"
-UNCLASSIFIED_PATH = PROJECT_ROOT / "outputs" / "unclassified_domains.txt"
+UNCLASSIFIED_PATH = PROJECT_ROOT / "unclassified_domains.txt"
 
 KNOWLEDGE_DB = Path.home() / "Library/Application Support/Knowledge/knowledgeC.db"
 BIOME_APPINFOCUS_DIR = Path.home() / "Library/Biome/streams/restricted/App.InFocus/remote"
@@ -625,8 +625,9 @@ def main() -> int:
         total_kept += kept
         print(f"[screentime] {day}: +{added} new, {kept} total → {day_path}")
 
-    # Merge new unclassified keys into outputs/unclassified_domains.txt so
-    # the classify-unclassified-domains scheduled task can pick them up.
+    # Merge new unclassified keys into ./unclassified_domains.txt at the
+    # project root so users can edit the file by hand and the scheduled
+    # classify-unclassified-domains task can pick them up.
     if unclassified:
         existing: set[str] = set()
         if UNCLASSIFIED_PATH.exists():

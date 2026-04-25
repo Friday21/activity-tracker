@@ -21,7 +21,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / 'config.json'
 DOMAIN_CATEGORIES_PATH = ROOT / 'domain_categories.json'
-UNCLASSIFIED_DOMAINS_PATH = ROOT / 'outputs' / 'unclassified_domains.txt'
+UNCLASSIFIED_DOMAINS_PATH = ROOT / 'unclassified_domains.txt'
 ACTIVITY_INPUT_DIR = ROOT / 'inputs' / 'activity'
 OUTPUT_DAILY = ROOT / 'outputs' / 'daily'
 OUTPUT_DATA = ROOT / 'outputs' / 'data'
@@ -521,7 +521,12 @@ def process_day(day, all_visits: list[Visit], config: dict) -> None:
 
 
 def write_unclassified_domains(visits: list[Visit]) -> None:
-    """Append newly seen '其他' domains to unclassified_domains.txt."""
+    """Append newly seen '其他' domains to ./unclassified_domains.txt (top-level).
+
+    The file lives at the project root next to domain_categories.json so users
+    can hand-edit it (or pipe through an LLM) and move keys into the known
+    mapping.
+    """
     # Load existing entries to avoid duplicates
     existing: set[str] = set()
     if UNCLASSIFIED_DOMAINS_PATH.exists():

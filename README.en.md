@@ -138,7 +138,8 @@ Copy `config.example.json` to `config.json` and edit:
 - **`upload.enabled: false`** if you just want local JSON and no remote upload.
 - **`upload.open_id`** never commit this to git. `config.json` is in `.gitignore`.
 - **`categories`** — 8 top-level buckets the project ships with. Rename / translate freely; downstream code doesn't care.
-- **`domain_categories.json`** (separate file) — specific-domain overrides. E.g. `"github.com": "工作"`. Unknown domains are accumulated in `outputs/unclassified_domains.txt` for later review.
+- **`domain_categories.json`** (separate file at the project root) — specific-domain overrides, e.g. `"github.com": "工作"`. Committed to git, safe to share.
+- **`unclassified_domains.txt`** (separate file at the project root) — domains/bundle ids the pipeline couldn't auto-categorize. Edit it by hand (or paste it into an LLM) and move resolved entries into `domain_categories.json`. `.gitignore`d because it can leak browsing patterns.
 
 ---
 
@@ -266,7 +267,8 @@ activity-tracker-mac/
 ├── schedule.sh                         ← install/uninstall launchd agent
 ├── run_daily.sh                        ← the pipeline entrypoint
 ├── config.example.json
-├── domain_categories.json              ← domain → category mappings (extensible)
+├── domain_categories.json              ← known domain/bundle → category map (committed)
+├── unclassified_domains.txt            ← unknown keys, awaiting your/LLM review (gitignored)
 ├── requirements.txt
 ├── launchd/
 │   └── com.user.activity-tracker.plist.template
@@ -287,8 +289,7 @@ activity-tracker-mac/
 │   ├── data/YYYY-MM-DD.json            ← analyzed browser visits
 │   ├── daily/YYYY-MM-DD.json           ← ★ final per-day output
 │   ├── daily/YYYY-MM-DD.summary.txt
-│   ├── logs/
-│   └── unclassified_domains.txt
+│   └── logs/
 └── examples/
     └── daily.example.json
 ```

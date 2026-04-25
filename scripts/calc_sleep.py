@@ -121,34 +121,49 @@ def _skip_clock_events(
 
 
 def calc_sleep(day: str, tz: ZoneInfo) -> dict:
-    """Return a daily-JSON sleep item for day `day` (YYYY-MM-DD)."""
+    """Return a daily-JSON sleep item for day `day` (YYYY-MM-DD).
+
+    Sleep detection rules:
+      - The wake-up event must be at or after WAKE_EARLIEST_HOUR (3am).
+        Activity earlier than that (e.g. a 1am toilet/phone session) is
+        treated as pre-sleep noise, not waking up.
+      - If the user has *no* iPhone activity on day D at or after 3am, sleep
+        is treated as undetermined and we record duration_seconds=0 — a later
+        run will fill it in once the user actually starts using the phone.
+    """
     today_date = dt.date.fromisoformat(day)
     prev_date = (today_date - dt.timedelta(days=1)).isoformat()
 
     today_events = _iphone_intervals(day, tz)
     prev_events = _iphone_intervals(prev_date, tz)
 
+    # Anchor used for placeholder records (timezone-aware so the offset is correct
+    # even on non-Shanghai setups).
+    placeholder_start = dt.datetime(
+        today_date.year, today_date.month, today_date.day, tzinfo=tz,
+    )
+
     # No screen-time at all today → placeholder with 0 duration.
     if not today_events:
-        return {
-            "category": "睡眠",
-            "title": "睡眠",
-            "date": day,
-            "start": f"{day}T00:00:00+08:00",
-            "duration_seconds": 0,
-            "detail": "sleep",
-            "source": "calculated",
-        }
+        return _make_item(placeholder_start, 0, day)
+
+    # Activities before this time are treated as pre-sleep, not wake-up.
+    cutoff = dt.datetime(
+        today_date.year, today_date.month, today_date.day,
+        WAKE_EARLIEST_HOUR, 0, 0, tzinfo=tz,
+    )
+
+    # Sleep can only be determined if there is at least one event today at or
+    # after the cutoff. Without it, the user might still be asleep, or only had
+    # short pre-3am awakenings — leave sleep undetermined and let the next run
+    # pick it up.
+    post_cutoff_events = [s for s, _e, _b in today_events if s >= cutoff]
+    if not post_cutoff_events:
+        return _make_item(placeholder_start, 0, day)
 
     # Build search window boundaries.
-    window_start = dt.datetime(
-        today_date.year, today_date.month, today_date.day,
-        tzinfo=tz,
-    ) - dt.timedelta(days=1) + dt.timedelta(hours=WINDOW_PREV_HOUR)
-    window_end = dt.datetime(
-        today_date.year, today_date.month, today_date.day,
-        tzinfo=tz,
-    ) + dt.timedelta(hours=WINDOW_TODAY_HOUR)
+    window_start = placeholder_start - dt.timedelta(days=1) + dt.timedelta(hours=WINDOW_PREV_HOUR)
+    window_end = placeholder_start + dt.timedelta(hours=WINDOW_TODAY_HOUR)
 
     # Collect events that overlap the search window.
     combined: list[tuple[dt.datetime, dt.datetime]] = []
@@ -158,38 +173,29 @@ def calc_sleep(day: str, tz: ZoneInfo) -> dict:
             combined.append((max(start, window_start), min(end, window_end)))
     combined.sort()
 
-    if not combined:
-        # No events fell inside the search window.
-        if not prev_events:
-            # No previous-day data → cannot determine sleep start.
-            return _make_item(
-                dt.datetime.fromisoformat(f"{day}T00:00:00+08:00"), 0, day
-            )
-        # Use last prev event as sleep start, first today event as wake.
-        sleep_start = prev_events[-1][1]
-        wake_time = _skip_clock_events(today_events, today_events[0][0])
-        duration = max(0, int((wake_time - sleep_start).total_seconds()))
-        return _make_item(sleep_start, duration, day)
-
-    # Find the longest gap between consecutive events.
-    best_gap_secs = 0
-    best_sleep_start: dt.datetime = combined[0][1]  # end of first event
-    best_wake_time: dt.datetime = combined[-1][0]   # start of last event (fallback)
-
     # Whether we have real events from the previous day inside the window.
     has_prev_context = any(
         end >= window_start and start <= window_end
         for start, end, _bid in prev_events
     )
 
-    # Consider gap from window_start → first event only when we actually have
-    # previous-day data; otherwise that gap is an artifact of missing data.
-    candidates: list[tuple[dt.datetime, dt.datetime, int]] = []
+    if not combined:
+        if not prev_events:
+            return _make_item(placeholder_start, 0, day)
+        sleep_start = prev_events[-1][1]
+        wake_time = _skip_clock_events(today_events, post_cutoff_events[0])
+        if wake_time < cutoff:
+            wake_time = post_cutoff_events[0]
+        duration = max(0, int((wake_time - sleep_start).total_seconds()))
+        return _make_item(sleep_start, duration, day)
 
+    # Build candidate gaps. Consider gap from window_start → first event only
+    # when we actually have previous-day data; otherwise that gap is an artifact
+    # of missing data.
+    candidates: list[tuple[dt.datetime, dt.datetime, int]] = []
     prev_end = window_start
-    for i, (start, end) in enumerate(combined):
+    for start, end in combined:
         if prev_end == window_start and not has_prev_context:
-            # No previous-day context: skip the artificial opening gap.
             prev_end = max(prev_end, end)
             continue
         gap = int((start - prev_end).total_seconds())
@@ -197,55 +203,43 @@ def calc_sleep(day: str, tz: ZoneInfo) -> dict:
             candidates.append((prev_end, start, gap))
         prev_end = max(prev_end, end)
 
-    # Activities before this time are treated as pre-sleep, not wake-up.
-    cutoff = dt.datetime(
-        today_date.year, today_date.month, today_date.day,
-        WAKE_EARLIEST_HOUR, 0, 0, tzinfo=tz,
-    )
+    # Only consider gaps whose wake-time is at or after the 3am cutoff. A gap
+    # that "ends" at 1am is not a sleep cycle — it's the user going to bed at
+    # 9pm and briefly checking their phone at 1am. Picking the longest such gap
+    # would mis-report sleep as 9pm→1am.
+    valid_candidates = [c for c in candidates if c[1] >= cutoff]
 
-    if candidates:
-        valid_candidates = [c for c in candidates if c[1] >= cutoff]
-        best = max(valid_candidates if valid_candidates else candidates, key=lambda x: x[2])
-        best_sleep_start, best_wake_time, best_gap_secs = best
+    best_sleep_start: dt.datetime | None = None
+    best_wake_time: dt.datetime | None = None
+    best_gap_secs = 0
+
+    if valid_candidates:
+        best = max(valid_candidates, key=lambda x: x[2])
+        best_sleep_start, best_wake_time, _ = best
         best_wake_time = _skip_clock_events(today_events, best_wake_time)
-        # If wake time is still before cutoff, advance to first post-cutoff event.
         if best_wake_time < cutoff:
-            post_cutoff = [s for s, _e, _b in today_events if s >= cutoff]
-            if post_cutoff:
-                best_wake_time = post_cutoff[0]
-                best_gap_secs = max(0, int((best_wake_time - best_sleep_start).total_seconds()))
+            best_wake_time = post_cutoff_events[0]
+        best_gap_secs = max(0, int((best_wake_time - best_sleep_start).total_seconds()))
 
     if best_gap_secs < MIN_SLEEP_GAP:
-        # No gap ≥ 2 hours found.
-        if not has_prev_context:
-            # No previous-day data at all → can't determine sleep.
-            return _make_item(
-                dt.datetime.fromisoformat(f"{day}T00:00:00+08:00"), 0, day
-            )
-        # Fallback: last event yesterday → first event today at/after cutoff.
-        if prev_events:
-            fb_sleep = prev_events[-1][1]
-        elif combined:
-            fb_sleep = combined[0][1]
-        else:
-            fb_sleep = window_start
-        fb_wake_raw = today_events[0][0]
-        if fb_wake_raw < cutoff:
-            post_cutoff = [s for s, _e, _b in today_events if s >= cutoff]
-            fb_wake_raw = post_cutoff[0] if post_cutoff else fb_wake_raw
-        fb_wake = _skip_clock_events(today_events, fb_wake_raw)
+        # No qualifying gap ≥ 2h. Try a coarse fallback: last event yesterday
+        # → first post-cutoff event today.
+        if not has_prev_context and not prev_events:
+            return _make_item(placeholder_start, 0, day)
+
+        fb_sleep = prev_events[-1][1] if prev_events else combined[0][1]
+        fb_wake = _skip_clock_events(today_events, post_cutoff_events[0])
         if fb_wake < cutoff:
-            post_cutoff = [s for s, _e, _b in today_events if s >= cutoff]
-            if post_cutoff:
-                fb_wake = post_cutoff[0]
+            fb_wake = post_cutoff_events[0]
         fb_gap = max(0, int((fb_wake - fb_sleep).total_seconds()))
 
-        if candidates and best_gap_secs >= fb_gap:
-            pass  # keep best from candidates
-        else:
+        if best_sleep_start is None or fb_gap > best_gap_secs:
             best_sleep_start = fb_sleep
             best_wake_time = fb_wake
             best_gap_secs = fb_gap
+
+    if best_sleep_start is None or best_wake_time is None:
+        return _make_item(placeholder_start, 0, day)
 
     duration = max(0, int((best_wake_time - best_sleep_start).total_seconds()))
     return _make_item(best_sleep_start, duration, day)

@@ -84,26 +84,9 @@ cp config.example.json config.json             # 然后按需编辑，见下文
 
 ---
 
-## 运行前提
-
-1. **macOS 12 或更高**（已在 14 Sonoma 和 15 Sequoia 上测过）。
-2. **Python 3.10+**（`python3 --version` 看一下）。
-3. **Full Disk Access**（完全磁盘访问权限）。没这个权限，`knowledgeC.db` 会读不出来而且不会报错。
-
-   System Settings → Privacy & Security → **Full Disk Access** → 把**真正执行脚本的二进制**加进去：
-   - `Terminal.app` / `iTerm.app`（手动跑脚本时）
-   - `/bin/zsh`（launchd 跑脚本时——就是 plist 里写的解释器）
-   - 有些 macOS 版本还要把 `launchd` 本身加进去
-
-   加完以后把这一项关了再打开，macOS 的 TCC 权限是按二进制哈希缓存的。
-
-4. **有活动记录的 Google 帐号**。如果你在 Google 帐号里关掉了「网络与应用活动」（Web & App Activity），这套东西就没数据可抓，需要先到 [myactivity.google.com/activitycontrols](https://myactivity.google.com/activitycontrols) 打开。
-
----
-
 ## 配置
 
-把 `config.example.json` 拷成 `config.json`，编辑：
+把 `config.example.json` 拷成 `config.json`，按下面的字段编辑（必须先做这一步，再去看[运行前提](#运行前提)和[一键上手](#一键上手)）：
 
 ```jsonc
 {
@@ -136,9 +119,63 @@ cp config.example.json config.json             # 然后按需编辑，见下文
 ```
 
 - **`upload.enabled: false`** 如果你只想本地落 JSON、不想上传远端。
+- **`upload.endpoint` / `upload.open_id` 怎么拿？** 打开微信小程序「**一日虚度**」 → **我的** → **如何上传数据** 页面，里面会给出当前账号对应的 `endpoint` 和 `open_id`，直接复制粘贴到 `config.json` 即可。
 - **`upload.open_id`** 千万别 commit 到 git！`config.json` 已经在 `.gitignore` 里。
 - **`categories`** 默认的 8 个中文大类。可以自由改名或换成英文，后续代码不 care 具体名字。
-- **`domain_categories.json`**（独立文件）—— 具体 domain 或 bundle id 的分类覆盖，比如 `"github.com": "工作"`。运行时遇到未分类的新 key 会累积到 `outputs/unclassified_domains.txt` 供你人工或用 LLM 批处理。
+- **分类规则放在两个独立文件里**（顶层目录），具体怎么手动改见下面 [分类规则](#分类规则)。
+
+---
+
+## 分类规则
+
+分类的判定优先级是：
+
+```
+domain_categories.json（精确命中）  >  config.json 里的 categories 关键字  >  其他
+```
+
+落盘的时候用到两个文件，都在**项目根目录**，方便你直接编辑：
+
+| 文件 | 装的东西 | 谁会写它 |
+|---|---|---|
+| [`domain_categories.json`](domain_categories.json) | **已知**：`domain / bundle_id → 分类` 的精确映射，比如 `"github.com": "工作"` | 你 + LLM；提交进 git，可以分享 |
+| `unclassified_domains.txt` | **未知**：跑 pipeline 时遇到的、没法自动归类的新 `domain / bundle_id`，每行一个 | 脚本自动写入；**已 .gitignore，本地私有** |
+
+### 怎么手动调分类
+
+1. 翻一下根目录的 `unclassified_domains.txt`（跑过几次后会自动出现），里面是没归类的 domain / bundle id。
+2. 决定每条该进哪个大类（`学习 / 工作 / 娱乐 / 社交 / 购物 / 新闻 / 工具 / 其他`），把它**搬到** `domain_categories.json`，例如：
+
+   ```json
+   {
+     "github.com": "工作",
+     "v.douyin.com": "娱乐",
+     "com.netease.cloudmusic": "娱乐"
+   }
+   ```
+
+3. 已经搬过去的那一行可以从 `unclassified_domains.txt` 里删掉（不删也不会重复，下次写入会去重）。
+4. **想批量处理？** 把 `unclassified_domains.txt` 整段贴给 ChatGPT / Claude，让它输出 JSON 片段，再合并进 `domain_categories.json` 即可。
+5. 改完不需要重启什么，下次 `./run_daily.sh`（或 `src/analyze.py --day yesterday`）就会按新规则重新归类。
+
+> 🛈 想改大类本身（比如把 `工具` 拆成 `工具` + `AI`），编辑 `config.json` 里的 `categories` 字段；后续代码对类名没硬编码，自由命名。
+
+---
+
+## 运行前提
+
+1. **macOS 12 或更高**（已在 14 Sonoma 和 15 Sequoia 上测过）。
+2. **Python 3.10+**（`python3 --version` 看一下）。
+3. **Full Disk Access**（完全磁盘访问权限）。没这个权限，`knowledgeC.db` 会读不出来而且不会报错。
+
+   System Settings → Privacy & Security → **Full Disk Access** → 把**真正执行脚本的二进制**加进去：
+   - `Terminal.app` / `iTerm.app`（手动跑脚本时）
+   - `/bin/zsh`（launchd 跑脚本时——就是 plist 里写的解释器）
+   - 有些 macOS 版本还要把 `launchd` 本身加进去
+
+   加完以后把这一项关了再打开，macOS 的 TCC 权限是按二进制哈希缓存的。
+
+4. **有活动记录的 Google 帐号**。如果你在 Google 帐号里关掉了「网络与应用活动」（Web & App Activity），这套东西就没数据可抓，需要先到 [myactivity.google.com/activitycontrols](https://myactivity.google.com/activitycontrols) 打开。
 
 ---
 
@@ -267,7 +304,8 @@ activity-tracker-mac/
 ├── schedule.sh                         ← launchd agent 安装/卸载
 ├── run_daily.sh                        ← pipeline 入口
 ├── config.example.json
-├── domain_categories.json              ← domain → 分类映射（可扩展）
+├── domain_categories.json              ← 已知分类（domain / bundle_id → 大类，可扩展，进 git）
+├── unclassified_domains.txt            ← 未知分类（脚本自动写入，待你或 LLM 归类，已 .gitignore）
 ├── requirements.txt
 ├── launchd/
 │   └── com.user.activity-tracker.plist.template
@@ -288,8 +326,7 @@ activity-tracker-mac/
 │   ├── data/YYYY-MM-DD.json            ← 浏览记录明细
 │   ├── daily/YYYY-MM-DD.json           ← ★ 每日最终产物
 │   ├── daily/YYYY-MM-DD.summary.txt
-│   ├── logs/
-│   └── unclassified_domains.txt
+│   └── logs/
 └── examples/
     └── daily.example.json
 ```

@@ -11,6 +11,10 @@ __pycache__/
 # User config — contains secrets (Telegram tokens, API open_id)
 config.json
 
+# Per-user list of unclassified domains/bundle ids — reveals browsing patterns,
+# don't commit. Edit it locally to retrain domain_categories.json.
+unclassified_domains.txt
+
 # Generated data
 inputs/activity/
 outputs/
